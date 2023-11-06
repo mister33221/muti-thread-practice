@@ -2,6 +2,7 @@ package com.kai.ticketsystemformutithreadspractice.service;
 
 import com.kai.ticketsystemformutithreadspractice.models.AddTicketsInfo;
 import com.kai.ticketsystemformutithreadspractice.models.Ticket;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-@org.springframework.stereotype.Service
+@Service
 public class TicketService {
 
     private ConcurrentHashMap<String, Ticket> tickets = new ConcurrentHashMap<>();
@@ -25,24 +26,27 @@ public class TicketService {
     private Condition ticketAvailable = lock.newCondition();
 
     public Object buyTicket(int type, String buyerId) throws InterruptedException {
-        // version 1
-        Integer count = buyerTickets.getOrDefault(buyerId, 0);
-        if (count >= 2) {
-            return "You can't buy more than 2 tickets";
-        }
-
-        for (Ticket ticket : tickets.values()) {
-            synchronized (ticket) {
-                if (!ticket.getIsSold().get() && ticket.getType() == type) {
-                    ticket.getIsSold().set(true);
-                    ticket.setOwner(buyerId);
-                    buyerTickets.put(buyerId, count + 1);
-                    return ticket;
-                }
-            }
-        }
-        return "No ticket available";
-//        version 2
+////         version 1
+////        buyTickets is ConcurrentHashMap
+////        ConcurrentHashMap: A thread-safe version of HashMap, which allows multiple threads to read/write at the same time. And the efficiency is higher than Hashtable.
+//        Integer count = buyerTickets.getOrDefault(buyerId, 0);
+//        if (count >= 2) {
+//            return "You can't buy more than 2 tickets";
+//        }
+//
+////        There is possibility that a buy bought a ticket then two threads pass above 2 tickets check and try to buy another ticket at the same time.
+//        for (Ticket ticket : tickets.values()) {
+//            synchronized (ticket) {
+//                if (!ticket.getIsSold().get() && ticket.getType() == type) {
+//                    ticket.getIsSold().set(true);
+//                    ticket.setOwner(buyerId);
+//                    buyerTickets.put(buyerId, count + 1);
+//                    return ticket;
+//                }
+//            }
+//        }
+//        return "No ticket available";
+////        version 2
 //        Integer count = buyerTickets.getOrDefault(buyerId, 0);
 //        if (count >= 2) {
 //            return "You can't buy more than 2 tickets";
@@ -65,6 +69,11 @@ public class TicketService {
 //        } finally {
 //            lock.unlock();
 //        }
+//        version 3
+
+
+        return null;
+
     }
 
     public String returnTicket(String buyerId, String ticketId) {

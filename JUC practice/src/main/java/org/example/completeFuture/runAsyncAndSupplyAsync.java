@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class runAsyncAndSupplyAsync {
+public class RunAsyncAndSupplyAsync {
 
     public static void main(String[] args) {
 

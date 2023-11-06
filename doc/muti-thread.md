@@ -442,6 +442,577 @@ Exception in thread "main" java.util.concurrent.TimeoutException
     5. SupplyAsync task done
     6. after join line
     ```
+## 多線程查詢的實際案例
+```java
+
+/*
+1. 需求
+    1.1 同一款產品，同時搜索出同款商品在各大店商平台的售價
+    2.2 同一款產品，同時搜索出本產品在同一個店商平台下，各個入駐賣家的售價
+
+2. 輸出: 出來的結果希望是同款產品在不同地方的嫁個顛列表，返回一個List<String>
+    <<mySQL>> in jd price: 100
+    <<mySQL>> in dangdang price: 200
+    <<mySQL>> in taobao price: 300
+ 3. 技術需求
+    3.1 functional programming
+    3.2 chain pattern
+    3.3 Stream流式計算
+ */
+
+@Data
+@Builder
+@Accessors(chain = true)
+@AllArgsConstructor
+@NoArgsConstructor
+class NetMall {
+
+    private String netMallName;
+
+    public double calculatePrice(String productName) {
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return ThreadLocalRandom.current().nextDouble() * 2 + productName.charAt(0);
+
+    }
+
+}
+
+public class CompleteableFutureMallDemo {
+
+    public static void main(String[] args) {
+
+//        Demo 1: 一家家搜, 沒有使用多執行緒
+        long startTime = System.currentTimeMillis();
+        System.out.println(getPrice("mysql"));
+        long endTime = System.currentTimeMillis();
+        System.out.println("Did't use CompletableFuture: " + (endTime - startTime) + "ms");
+
+//        Demo 2: 使用 completableFuture
+//        note: 使用了 CompletableFuture，它是 Java 8 引入的一種更靈活的並行處理方式。
+//              特點如下：
+//              可以更靈活地控制並發處理，例如，您可以自訂線程池，設置超時，或者應對多個異步操作。
+//              適合處理較複雜的並行任務，其中每個元素的處理可能需要不同的線程。
+//              可以使用 join 方法等待所有 CompletableFuture 完成，以確保獲得最終結果。
+//              缺點：
+//              使用相對較多的程式碼，需要額外的 CompletableFuture 相關操作，可能不如 parallelStream 簡單。
+//              需要更多的理解和掌握，特別是在處理較複雜的並行情況時。
+        long startTime2 = System.currentTimeMillis();
+        System.out.println(getPriceByCompletableFuture("mysql"));
+        long endTime2 = System.currentTimeMillis();
+        System.out.println("Use CompletableFuture: " + (endTime2 - startTime2) + "ms");
+
+//        Demo 3: 使用 parallelStream
+//        note: 使用了 Java 8 引入的 parallelStream() 方法，它將串行的流轉換為並行流，並利用多核處理器進行並行處理。
+//              特點如下：
+//              使用簡單，只需一行程式碼即可實現並行處理。
+//              較適合用於對一個集合中的元素進行相對簡單的操作，如映射和過濾。
+//              與串行流相比，相對容易理解和維護。
+//              缺點：
+//              不太適合處理複雜的並行任務，無法自訂線程數或控制並行處理的細節。
+//              在某些情況下，可能會產生性能問題，因為它可能會過度並行，導致多線程競爭和上下文切換。
+        long startTime3 = System.currentTimeMillis();
+        System.out.println(getPriceByParallelStream("mysql"));
+        long endTime3 = System.currentTimeMillis();
+        System.out.println("Use parallelStream: " + (endTime3 - startTime3) + "ms");
+
+
+//        如果您只需要簡單的並行處理，而且不需要太多細節控制，則 parallelStream 是一個簡單且有效的方法。
+//        如果您需要更多控制，或者處理複雜的並行任務，那麼 CompletableFuture 提供了更大的靈活性。
+
+    }
+
+    static List<NetMall> list = Arrays.asList(
+            NetMall.builder().netMallName("jd").build(),
+            NetMall.builder().netMallName("dangdang").build(),
+            NetMall.builder().netMallName("taobao").build(),
+            NetMall.builder().netMallName("tmall").build(),
+            NetMall.builder().netMallName("amazon").build(),
+            NetMall.builder().netMallName("ebay").build(),
+            NetMall.builder().netMallName("aliexpress").build(),
+            NetMall.builder().netMallName("walmart").build(),
+            NetMall.builder().netMallName("costco").build()
+    );
+
+    /**
+     * step by step 一家家搜
+     * @param productName
+     * @return List<String>
+     */
+    public static List<String> getPrice(String productName) {
+        return list.stream()
+                .map(netMall -> productName + " in " + netMall.getNetMallName() + " price: " + String.format("%.2f", netMall.calculatePrice(productName)))
+                .toList();
+    }
+
+    /**
+     * 使用CompletableFuture，同時搜
+     * @param productName
+     * @return List<String>
+     */
+    public static List<String> getPriceByCompletableFuture(String productName) {
+        return list.stream()
+                .map(netMall -> CompletableFuture.supplyAsync(() -> netMall.getNetMallName() + " price: " + String.format("%.2f", netMall.calculatePrice(productName))))
+                .toList()
+                .stream()
+                .map(CompletableFuture::join)
+                .toList();
+    }
+
+    /**
+     * 使用 parallelStream，同時搜
+     * @param productName
+     * @return List<String>
+     */
+    public static List<String> getPriceByParallelStream(String productName) {
+        return list.parallelStream()
+                .map(netMall -> netMall.getNetMallName() + " price: " + String.format("%.2f", netMall.calculatePrice(productName)))
+                .toList();
+    }
+
+}
+```
+```console
+[mysql in jd price: 109.18, mysql in dangdang price: 109.40, mysql in taobao price: 109.29, mysql in tmall price: 109.75, mysql in amazon price: 110.44, mysql in ebay price: 110.44, mysql in aliexpress price: 109.97, mysql in walmart price: 110.07, mysql in costco price: 109.24]
+Did't use CompletableFuture: 9148ms
+[jd price: 110.83, dangdang price: 110.04, taobao price: 109.32, tmall price: 109.22, amazon price: 110.53, ebay price: 110.80, aliexpress price: 109.22, walmart price: 109.60, costco price: 110.04]
+Use CompletableFuture: 1032ms
+[jd price: 109.20, dangdang price: 110.58, taobao price: 110.67, tmall price: 109.70, amazon price: 109.21, ebay price: 110.69, aliexpress price: 109.85, walmart price: 110.09, costco price: 110.09]
+Use parallelStream: 1019ms
+```
+
+## CompletableFuture 中常用的方法
+```java
+public class CompletableFuturePopularMethod {
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
+
+       get();
+       getWithTimeout();
+       join();
+       getNow(2); // parameter is how many seconds you want to wait, 1 second will get the default value, 2 seconds will get the result
+       complete(1); // parameter is how many seconds you want to wait, 1 second will get the default value, 2 seconds will get the result
+       thenApply();
+       handle();
+       thenAccept();
+       mixThenRunThenAcceptThenApply();
+       selectThreadPool();
+       combineTwoCompletableFuture();
+    }
+
+    /**
+     * `
+     * get result from completableFuture
+     * get() is a blocking method, it will throw ExecutionException if the task is failed
+     * get() is a blocking method, we can set a timeout for it
+     * join() is a blocking method, it will throw CompletionException if the task is failed,and we can use getCause() to get the real exception, it's eaiser to find the root cause,
+     * getNow() is a non-blocking method, it will return the result if the task is done, or it will return the default value
+     * complete() is a non-blocking method, it will return true if the task is done, or it will return false and the task will be canceled, and set the result to the default value
+     */
+    public static void get() throws ExecutionException, InterruptedException {
+        CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(1000);
+                return "Hello from completableFuture";
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+//        note: get() is a blocking method, it will throw ExecutionException if the task is failed
+        System.out.println(completableFuture.get());
+    }
+
+    public static void getWithTimeout() throws ExecutionException, InterruptedException, TimeoutException {
+        CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(2000);
+                return "Hello from completableFuture";
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+//        note: get() is a blocking method, we can set a timeout for it
+        System.out.println(completableFuture.get(1000, TimeUnit.MILLISECONDS));
+    }
+
+    public static void join() {
+        CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(1000);
+                return "Hello from completableFuture";
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+//        note: join() is a blocking method, it will throw CompletionException if the task is failed,
+//        and we can use getCause() to get the real exception, it's eaiser to find the root cause,
+//        and it's won't force us to catch the exception
+        System.out.println(completableFuture.join());
+    }
+
+    public static void getNow(Integer waitForSecond) throws InterruptedException {
+        CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(1000);
+                return "Hello from completableFuture";
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+//        note: getNow() is a non-blocking method, it will return the result if the task is done,
+//        or it will return the default value
+        Thread.sleep(waitForSecond * 1000);
+        System.out.println(completableFuture.getNow("getNow default value"));
+    }
+
+    public static void complete(Integer waitForSecond) throws InterruptedException {
+        CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(1000);
+                return "Hello from completableFuture";
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+//        note: complete() is a non-blocking method, it will return true if the task is done,
+//        or it will return false and the task will be canceled, and set the result to the default value
+        Thread.sleep(waitForSecond * 1000);
+        System.out.println(completableFuture.complete("complete default value") + " " + completableFuture.join());
+    }
+
+
+    /**
+     * trigger a task when completableFuture is done
+     * thenApply(): 這個方法在異步操作完成後，對結果進行轉換或計算，並返回一個新的 CompletableFuture。如果原始 CompletableFuture 完成時發生異常，則不會調用 thenApply 函數。
+     * handle(): 這個方法在異步操作完成後，無論成功還是異常，都會被調用。它可以用來處理異常，或者在計算結果時考慮到可能的異常。
+     */
+
+    public static void thenApply() {
+
+        CompletableFuture completableFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Thread.sleep(1000);
+                        return "Hello from completableFuture";
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).thenApply(s -> {
+                    System.out.println("in thenApply 1");
+                    return s + " thenApply 1 ";
+                }).thenApply(s -> {
+                    int i = 1 / 0; // comment or uncomment this line to see the difference between thenApply() and handle()
+                    System.out.println("in thenApply 2");
+                    return s + " thenApply 2";
+                }).thenApply(s -> {
+                    System.out.println("in thenApply 3");
+                    return s + " thenApply 3";
+                })
+                .whenComplete((result, exception) -> {
+                    if (exception == null) {
+                        System.out.println("--------計算結果: " + result);
+                    }
+                }).exceptionally(exception -> {
+                    System.out.println("--------exception: " + exception.getMessage());
+                    return null;
+                });
+
+//        在Java中，執行緒可以分為守護執行緒（daemon threads）和非守護執行緒（non-daemon threads）
+//        守護執行緒（Daemon Threads）：
+//          守護執行緒是應用程序中的背景執行緒，它們的存在不會防止應用程序的結束。
+//          當所有的非守護執行緒結束時，守護執行緒會自動終止，而不會等待它們完成。
+//          守護執行緒通常用於執行應用程序的一些低優先級工作，例如垃圾回收等。
+//          你可以將執行緒設置為守護執行緒，使用 setDaemon(true) 方法。
+//
+//        非守護(使用者)執行緒（Non-Daemon Threads or User Threads）：
+//          非守護執行緒是應用程序的主要執行緒，它們的存在會防止應用程序的結束。
+//          當所有的非守護執行緒結束時，應用程序才會結束。
+//          通常，應用程序的主執行緒和其他主要邏輯執行緒都是非守護執行緒。
+
+//        到底下這行"main thread is done" user thread 就已經做完，會導致 app結束，線程池也會被關閉，所以沒有等到上面的 completableFuture（Daemon Threads） 做完
+//        有兩種解決方案
+//        1. 自己開新的線程池，不要與預設的 forkJoinPool 混用
+//        2. 在最後加上一個 join()，讓 main thread 等待 completableFuture（Daemon Threads） 做完
+//        3. 在此讓 user threads 睡一下，讓 completableFuture（Daemon Threads） 有時間做完
+
+        System.out.println("main thread is done");
+
+        completableFuture.join();
+
+    }
+
+    public static void handle() {
+
+        CompletableFuture completableFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Thread.sleep(1000);
+                        return "Hello from completableFuture";
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).handle((s,e) -> {
+                    System.out.println("in handle 1");
+                    return s + " handle 1 ";
+                }).handle((s,e) -> {
+                    int i = 1 / 0; // comment or uncomment this line to see the difference between thenApply() and handle()
+                    System.out.println("in handle 2");
+                    return s + " handle 2";
+                }).handle((s,e)  -> {
+                    System.out.println("in handle 3");
+                    return s + " handle 3";
+                })
+                .whenComplete((result, exception) -> {
+                    if (exception == null) {
+                        System.out.println("--------計算結果: " + result);
+                    }
+                }).exceptionally(exception -> {
+                    System.out.println("--------exception: " + exception.getMessage());
+                    return null;
+                });
+
+        System.out.println("main thread is done");
+
+        completableFuture.join();
+
+    }
+
+    /**
+     * process and consume result from completableFuture
+     * thenAccept(): 沒有返回值，只是對結果進行消耗，所以在console中Hello from completableFuture thenAccept 1  thenAccept 2 後，只會看到null thenAccept 3
+     */
+    public static void thenAccept() {
+
+        CompletableFuture completableFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Thread.sleep(1000);
+                        return "Hello from completableFuture";
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).thenApply(s -> {
+                    System.out.println("in thenAccept 1");
+                    return s + " thenAccept 1 ";
+                }).thenAccept(s -> {
+                    System.out.println("in thenAccept 2");
+                    System.out.println(s + " thenAccept 2");
+                }).thenAccept(s -> {
+                    System.out.println("in thenAccept 3");
+                    System.out.println(s + " thenAccept 3");
+                })
+                .whenComplete((result, exception) -> {
+                    if (exception == null) {
+                        System.out.println("--------計算結果: " + result);
+                    }
+                }).exceptionally(exception -> {
+                    System.out.println("--------exception: " + exception.getMessage());
+                    return null;
+                });
+
+        System.out.println("main thread is done");
+
+        completableFuture.join();
+
+    }
+
+    public static void mixThenRunThenAcceptThenApply() {
+
+        // thenRun: 無返回值，只是在上一步操作完成後，做一些事情
+        System.out.print(CompletableFuture.supplyAsync(() -> "Hello")
+                .thenRun(() -> {})
+                .join()
+        ); // should print null
+
+        // thenAccept: 沒有返回值，只是對結果進行消耗
+        System.out.print(CompletableFuture.supplyAsync(() -> "Hello")
+                .thenAccept(s -> {})
+                .join()
+        ); // should print null
+
+        // thenApply: 有返回值，可以對結果進行轉換或計算
+        System.out.print(CompletableFuture.supplyAsync(() -> "Hello")
+                .thenApply(s -> s + " world")
+                .join()
+        ); // should print Hello world
+
+    }
+
+    /**
+     * select thread pool
+     */
+    public static void selectThreadPool() {
+
+//        compare use thenRun() and thenRunAsync();
+
+        ExecutorService es = Executors.newFixedThreadPool(3);
+
+        CompletableFuture<Void> completableFuture = CompletableFuture.supplyAsync(() -> "Hello")
+                .thenRun(() -> System.out.println(Thread.currentThread().getName() + " thenRun"))
+                .thenRunAsync(() -> System.out.println(Thread.currentThread().getName() + " thenRunAsync"))
+                .thenRunAsync(() -> System.out.println(Thread.currentThread().getName() + " thenRunAsync"), es);
+
+        completableFuture.join();
+
+        es.shutdown();
+
+        /*
+        output: 可能會有兩種結果
+        1.
+        main thenRun 照理未指定線程池，所以用預設的 ForkJoinPool.commonPool(),但因為效能夠，底層會自動調用最優的線程，所以就直接使用main了
+        ForkJoinPool.commonPool-worker-1 thenRunAsync
+        pool-1-thread-1 thenRunAsync
+        2.
+        ForkJoinPool.commonPool-worker-1 thenRun 未指定線程池，所以用預設的 ForkJoinPool.commonPool()
+        ForkJoinPool.commonPool-worker-1 thenRunAsync 未指定線程池，所以用預設的 ForkJoinPool.commonPool()
+        pool-1-thread-1 thenRunAsync
+         */
+
+    }
+
+    /**
+     * combine two completableFuture
+     */
+    public static void combineTwoCompletableFuture() {
+
+        CompletableFuture<String> completableFuture1 = CompletableFuture.supplyAsync(() -> "Hello");
+        CompletableFuture<String> completableFuture2 = CompletableFuture.supplyAsync(() -> " world");
+
+        CompletableFuture<String> completableFuture3 = completableFuture1.thenCombine(completableFuture2, (s1, s2) -> s1 + s2);
+
+        System.out.println(completableFuture3.join());
+
+    }
+}
+
+```
+
+## 鎖
+
+### 樂觀鎖與悲觀鎖
+
+樂觀鎖和悲觀鎖是兩種常見的同步策略，主要用於處理多線程環境中的資源競爭問題。
+
+- 樂觀鎖：
+  - 特性：樂觀鎖假設在大部分時間內，資源不會產生競爭，所以不需要加鎖，只在更新資源時才會檢查是否有其他線程修改了這個資源。在Java中，樂觀鎖通常由版本號（version）或者時間戳來實現。最常採用的是CAS算法，Java中的Atomic類就是使用CAS實現的。
+  - 使用時機：當資源的競爭不激烈，讀操作遠多於寫操作時，使用樂觀鎖可以減少鎖的開銷，提高系統的吞吐量。
+  - 優點：在無競爭或競爭較少的情況下，樂觀鎖的性能優於悲觀鎖。
+  - 缺點：如果競爭激烈，樂觀鎖需要不斷重試，效率會變低。
+- 悲觀鎖：
+  - 特性：悲觀鎖假設在任何時候都可能有其他線程來競爭資源，所以在每次讀寫操作時都會先加鎖，確保在操作期間不會有其他線程修改這個資源。在Java中，悲觀鎖可以由synchronized關鍵字或者Lock接口來實現。
+  - 使用時機：當資源的競爭激烈，寫操作多於讀操作時，使用悲觀鎖可以確保資源的一致性和安全性。
+  - 優點：在競爭激烈的情況下，悲觀鎖可以避免不必要的重試，保證資源的一致性。
+  - 缺點：悲觀鎖在任何情況下都會加鎖，可能會導致線程阻塞，降低系統的吞吐量。
+
+- CAS: Compare And Swap
+  - CAS是一種樂觀鎖的實現方式，它的原理是先比較目前的值是否與期望的值相等，如果相等，則更新為新的值，否則不做任何處理。CAS是一個原子操作，可以保證資源的一致性和安全性。
+  - CAS的缺點是在競爭激烈的情況下，會一直重試，這樣會消耗大量的CPU資源，降低系統的吞吐量。為了解決這個問題，Java中的Atomic類提供了一些方法，可以限制CAS的重試次數，或者在重試次數達到一定的次數後，進行阻塞，等待一段時間後再重試。
+
+- 用鎖的原則
+  - 鎖的粒度越小越好，這樣才能減少鎖的競爭，提高系統的吞吐量。
+  - 能不用鎖就不用鎖;能鎖區塊就不要鎖整個方法;能鎖對象就不要鎖類別。
+
+### 8種不同鎖的狀況
+
+請嘗試修改下面的程式碼，使得8種不同狀況，並觀察結果。
+
+```java
+class Phone {
+
+    // 嘗試修改此方法 微 有無static、有無synchronized
+    public synchronized  void sendEmail() {
+        try {
+            TimeUnit.SECONDS.sleep(4);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("-------sendEmail");
+    }
+
+    // 嘗試修改此方法 微 有無static、有無synchronized
+    public synchronized  void sendSMS() {
+        System.out.println("-------sendSMS");
+    }
+
+    public void hello() {
+        System.out.println("-------hello");
+    }
+
+}
+
+/**
+ * 8種鎖的案例說明
+ * 1. 標準訪問有a b兩個執行緒，請問先打印email還是sms
+ * 2. 在sendEmail方法新增Thread.sleep(4000)，請問先打印email還是sms
+ * 3. 新增一個普通方法hello，請問先打印email還是hello
+ * 4. 有兩部手機，請問先打印email還是sms
+ * 5. 兩個靜態同步方法，同一部手機，請問先打印email還是sms
+ * 6. 兩個靜態同步方法，兩部手機，phone1 sendEmail、phone2 sendSMS，請問先打印email還是sms
+ * 7. 一個靜態同步方法，一個普通同步方法，同一部手機，請問先打印email還是sms
+ * 8. 一個靜態同步方法，一個普通同步方法，兩部手機，phone1 sendEmail、phone2 sendSMS，請問先打印email還是sms
+ */
+
+/**
+ * 預期筆記
+ * 1-2.
+ *  一個對象裡面如果有多個synchronized方法，某一個時刻內，只要有一個執行緒去調用其中的一個synchronized方法了，
+ *  其他的執行緒都只能等待，也就是說，某一個時刻內，只能有一個執行緒去調用這些synchronized方法。
+ *  換句話說，synchronized鎖的是當前對象this，被鎖定後，其他的執行緒都不能進入到當前對象的其他synchronized方法。
+ * 3-4.
+ *  加個普通方法發現和同步鎖無關，因為並沒有去爭搶資源
+ *  換成兩個對象，synchronized鎖的this是不同的對象，所以不會有爭搶資源的問題
+ * 5-6. 都換成靜態同步方法
+ *  由於在class中的方法加上了靜態static，那摩說明該方法的synchronized是鎖在class上的，而不是被new出來的對象上
+ *  也就是說，不管你new幾個物件，只要是同一個class，那麼他們就是同一把鎖
+ * 7-8.
+ *  當一個執行緒試圖訪問同步方法時，他首先必須獲得鎖，退出或者抛出異常時必須釋放鎖
+ *  所有的普通同步方法都是用的同一把鎖——實例對象本身，就是new出來的對象，就是this
+ *  也就是說如果一個實例對物件的痛不方法獲取鎖後，該實例對象的其他同步方法必須等待獲取鎖的方法釋放鎖後才能獲取鎖
+ *
+ *  所有的近太同步方法用的也是同一把鎖——類對象本身，就是我們這裡說的Phone.class
+ *  具體實例對象this和類對象class是兩個不同的對象，所以他們用的是兩把不同的鎖，一個是this，一個是class
+ *  但是一但一個近太同步方法獲取鎖後，其他的近太同步方法都必須等待該方法釋放鎖後才能獲取鎖
+ *
+ */
+public class Lock8Demo {
+
+    public static void main(String[] args) {
+
+        Phone phone1 = new Phone();
+        Phone phone2 = new Phone();
+
+        // 常是修改以下方法，以phone1、phone2呼叫有不同修飾詞的方法(如1-8的案例)，觀察結果，是否符合預期筆記
+        new Thread(() -> {
+            phone1.sendEmail();
+        }, "A").start();
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        new Thread(() -> {
+            phone1.sendSMS();
+        }, "B").start();
+
+        new Thread(() -> {
+            phone1.hello();
+        }, "C").start();
+
+        new Thread(() -> {
+            phone2.sendSMS();
+        }, "D").start();
+
+    }
+
+}
+```
 
 ## 參考資料
 - [一張圖看懂同步、非同步與多執行緒的差別](https://ouch1978.github.io/blog/2022/09/25/understand-sync-async-and-multi-thread-with-one-pic)

@@ -919,12 +919,12 @@ public class CompletableFuturePopularMethod {
 
 ### 8種不同鎖的狀況
 
-請嘗試修改下面的程式碼，使得8種不同狀況，並觀察結果。
+請嘗試修改下面的程式碼，使得8種不同狀況，並觀察結果是否符合表記中的預期。
 
 ```java
 class Phone {
 
-    // 嘗試修改此方法 微 有無static、有無synchronized
+    // 嘗試修改此方法 為 有無static、有無synchronized
     public synchronized  void sendEmail() {
         try {
             TimeUnit.SECONDS.sleep(4);
@@ -934,7 +934,7 @@ class Phone {
         System.out.println("-------sendEmail");
     }
 
-    // 嘗試修改此方法 微 有無static、有無synchronized
+    // 嘗試修改此方法 為 有無static、有無synchronized
     public synchronized  void sendSMS() {
         System.out.println("-------sendSMS");
     }
@@ -1013,6 +1013,43 @@ public class Lock8Demo {
 
 }
 ```
+
+### synchronized 
+
+synchronized 可以用在以下幾種地方
+- 修飾實例方法(物件被new出來的時候，就會產生一個實例)
+- 修飾靜態方法(指被加上static的方法)
+- 修飾程式碼區塊
+
+#### 觀察 synchronized 如何實現
+
+- 我們先新增一個類別如下，並把他編譯成class檔案
+```java
+public class LockSyncDemo {
+
+//    用類別new出一個物件(實例)
+    Object objectLockA = new Object();
+
+    public void methodA() {
+        synchronized (objectLockA) {
+            System.out.println("methodA");
+        }
+    }
+
+    public static void main(String[] args) {
+
+        
+    }
+
+}
+``````
+- 接著到專案的target資料夾中，找到LockSyncDemo.class，使用以下指令觀察class檔案的內容，我們可以發現在methodA()中，被synchronized修飾的區塊，被編譯成了monitorenter和monitorexit，這就表示synchronized是透過monitorenter來進行加鎖，透過monitorexit來進行解鎖。
+- 在下圖中可以看到有一個monitorenter，但是有兩個monitorexit，第一個monitorenter配對到第一個monitorexit，第二個則是為了確認無論發生甚麼事情(甚至是exception)，都要把鎖釋放，所以在後面還可以看到一個athrow。
+  ```console
+  javap -c .\LockSyncDemo.class
+  ```
+  ![Alt text](image-7.png)
+ ![Alt text](image-8.png)
 
 ## 參考資料
 - [一張圖看懂同步、非同步與多執行緒的差別](https://ouch1978.github.io/blog/2022/09/25/understand-sync-async-and-multi-thread-with-one-pic)

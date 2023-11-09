@@ -1024,32 +1024,95 @@ synchronized 可以用在以下幾種地方
 #### 觀察 synchronized 如何實現
 
 - 我們先新增一個類別如下，並把他編譯成class檔案
-```java
-public class LockSyncDemo {
+    ```java
+    public class LockSyncDemo {
 
-//    用類別new出一個物件(實例)
-    Object objectLockA = new Object();
+    //    用類別new出一個物件(實例)
+        Object objectLockA = new Object();
 
-    public void methodA() {
-        synchronized (objectLockA) {
-            System.out.println("methodA");
+        public void methodA() {
+            synchronized (objectLockA) {
+                System.out.println("methodA");
+            }
         }
+
+        public static void main(String[] args) {
+
+            
+        }
+
     }
-
-    public static void main(String[] args) {
-
-        
-    }
-
-}
-``````
+    ``````
 - 接著到專案的target資料夾中，找到LockSyncDemo.class，使用以下指令觀察class檔案的內容，我們可以發現在methodA()中，被synchronized修飾的區塊，被編譯成了monitorenter和monitorexit，這就表示synchronized是透過monitorenter來進行加鎖，透過monitorexit來進行解鎖。
 - 在下圖中可以看到有一個monitorenter，但是有兩個monitorexit，第一個monitorenter配對到第一個monitorexit，第二個則是為了確認無論發生甚麼事情(甚至是exception)，都要把鎖釋放，所以在後面還可以看到一個athrow。
   ```console
   javap -c .\LockSyncDemo.class
   ```
-  ![Alt text](image-7.png)
- ![Alt text](image-8.png)
+    ![Alt text](image-7.png)
+    ![Alt text](image-8.png)
+
+- 我們把上述的code再延伸一下，看看實體鎖、物件鎖、方法鎖
+  ```java
+  public class LockSyncDemo {
+
+    //    用類別new出一個物件(實例)
+        Object objectLockA = new Object();
+
+    //    將synchronized放在 objectLockA 上，代表當要執行synchronized (objectLockA) {}裡面的程式時，
+    //    必須先獲取objectLockA的鎖，同一個時間只能有一個執行緒獲取到objectLockA的鎖，其他執行緒必須等待
+        public void methodA() {
+            synchronized (objectLockA) {
+                System.out.println("methodA: synchronize on objectLockA");
+            }
+        }
+
+    //    將synchronized放在方法上，也等同於將synchronized放在this上，
+    //    也就是說，當你new出一個LockSyncDemo的物件時，只能有一個執行緒可以使用這個物件中帶有synchronized的方法，
+    //    而其他沒有帶有synchronized的方法，則可以被多個執行緒使用
+        public synchronized void methodB() throws InterruptedException {
+            TimeUnit.SECONDS.sleep(3);
+            System.out.println("methodB: synchronize on this");
+        }
+
+    //    將synchronized放在static方法上，也等同於將synchronized放在class上，
+    //    也就是說，無論你new出多少個新的instance，只要是同一個class，那麼他們就是同一把鎖
+        public static synchronized void methodC() throws InterruptedException {
+    //        TimeUnit.SECONDS.sleep(3);
+            System.out.println("methodC: synchroni ze on class");
+        }
+
+        public static void main(String[] args) throws InterruptedException {
+
+            LockSyncDemo lockSyncDemo = new LockSyncDemo();
+
+            new Thread(()->{
+                try{
+                LockSyncDemo.methodC();
+                } catch (InterruptedException e){
+                    e.printStackTrace();
+                }
+            }).start();
+
+            new Thread(()->{
+                lockSyncDemo.methodA();
+            }).start();
+
+            new Thread(()->{
+                try {
+                    lockSyncDemo.methodB();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }).start();
+
+
+            System.out.println("main thread is done");
+
+
+        }
+
+    }
+  ```
 
 ## 參考資料
 - [一張圖看懂同步、非同步與多執行緒的差別](https://ouch1978.github.io/blog/2022/09/25/understand-sync-async-and-multi-thread-with-one-pic)

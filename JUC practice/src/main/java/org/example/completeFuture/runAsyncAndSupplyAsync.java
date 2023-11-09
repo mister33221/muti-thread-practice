@@ -51,7 +51,7 @@ public class RunAsyncAndSupplyAsync {
 
         System.out.println("1. useSupplyAsync");
 
-        ExecutorService es = Executors.newFixedThreadPool(3);
+            ExecutorService es = Executors.newFixedThreadPool(3);
 
         // supplyAsync use Supplier, so there is a return value
         // if you use specify the thread pool, it will a new thread pool

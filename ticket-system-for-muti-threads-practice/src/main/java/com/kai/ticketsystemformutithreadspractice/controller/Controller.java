@@ -19,11 +19,7 @@ public class Controller {
     @Autowired
     private TicketService ticketService;
 
-    @Operation(summary = "(with muti threads)provide ticket type and buyer ID to buy a ticket")
-    @PostMapping(path = "/buy1", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Object> buyTicket(@RequestBody BuyTicketInfo buyTicketInfo) throws InterruptedException {
-        return ResponseEntity.ok(ticketService.buyTicket(buyTicketInfo.getType(), buyTicketInfo.getBuyerId()));
-    }
+
 
 //    @Operation(summary = "(without muti threads)provide ticket type and buyer ID to buy a ticket")
 //    @PostMapping("/buy2")

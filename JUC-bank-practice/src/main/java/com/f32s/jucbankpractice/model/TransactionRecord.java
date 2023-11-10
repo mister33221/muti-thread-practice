@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice.model;
+package com.F32S.JUCbankpractice.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,19 +19,14 @@ public class TransactionRecord {
     private String id;
     // 轉出帳戶
     private String fromAccount;
-
     // 轉入帳戶
     private String toAccount;
-
     // 轉帳結果
     private boolean result;
-
     // 交易時間
     private LocalDateTime time;
-
     // 交易金額
     private int amount;
-
     // 交易類型
     private String type;
 

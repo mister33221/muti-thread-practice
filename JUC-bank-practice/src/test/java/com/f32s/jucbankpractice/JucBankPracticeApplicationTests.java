@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice;
+package com.F32S.JUCbankpractice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

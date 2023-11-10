@@ -1,21 +1,17 @@
-package com.f32s.jucbankpractice.model;
+package com.F32S.JUCbankpractice.model;
 
 import lombok.Getter;
 
 public enum RecordType {
 
-    DEPOSIT("存款", 0),
-    WITHDRAW("提款", 1),
-    TRANSFER("轉帳", 2),
-    FEE("手續費", 3);
+    TRANSFER("轉帳"),
+    FEE("手續費");
 
     @Getter
     private final String type;
-    private final int TypeCode;
 
-    RecordType(String type, int TypeCode) {
+    RecordType(String type) {
         this.type = type;
-        this.TypeCode = TypeCode;
     }
 
 

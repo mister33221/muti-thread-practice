@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice.config;
+package com.F32S.JUCbankpractice.config;
 
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;

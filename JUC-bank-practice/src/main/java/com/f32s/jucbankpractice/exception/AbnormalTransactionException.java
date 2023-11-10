@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice.exception;
+package com.F32S.JUCbankpractice.exception;
 
 import java.io.Serial;
 

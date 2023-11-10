@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice.model;
+package com.F32S.JUCbankpractice.model;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;

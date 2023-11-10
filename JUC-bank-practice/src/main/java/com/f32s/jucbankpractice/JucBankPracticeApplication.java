@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice;
+package com.F32S.JUCbankpractice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

@@ -1,10 +1,11 @@
-package com.f32s.jucbankpractice.controller;
+package com.F32S.JUCbankpractice.controller;
 
-import com.f32s.jucbankpractice.exception.AbnormalTransactionException;
-import com.f32s.jucbankpractice.model.Account;
-import com.f32s.jucbankpractice.model.TransactionRecord;
-import com.f32s.jucbankpractice.model.TransferInfo;
-import com.f32s.jucbankpractice.service.BankService;
+
+import com.F32S.JUCbankpractice.exception.AbnormalTransactionException;
+import com.F32S.JUCbankpractice.model.Account;
+import com.F32S.JUCbankpractice.model.TransactionRecord;
+import com.F32S.JUCbankpractice.model.TransferInfo;
+import com.F32S.JUCbankpractice.service.BankService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 @RestController
 public class BankController {
@@ -48,7 +48,7 @@ public class BankController {
     }
 
     @Operation(summary = "Transfer money", tags = {"Transaction"})
-    @PostMapping("/transfer-kai")
+    @PostMapping("/transfer")
     public String transfer(@RequestBody TransferInfo transferInfo) throws AbnormalTransactionException {
         return bankService.transfer(transferInfo);
     }

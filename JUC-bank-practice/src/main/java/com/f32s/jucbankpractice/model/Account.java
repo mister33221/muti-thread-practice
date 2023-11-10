@@ -1,4 +1,4 @@
-package com.f32s.jucbankpractice.model;
+package com.F32S.JUCbankpractice.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,13 +18,10 @@ public class Account {
 
     // 帳號
     private String id;
-
     // 戶名
     private String name;
-
     // 餘額
     private AtomicInteger balance;
-
     // 轉帳次數
     private int transferTimes;
 

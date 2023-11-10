@@ -1,19 +1,20 @@
-package com.f32s.jucbankpractice.service;
+package com.F32S.JUCbankpractice.service;
 
-import com.f32s.jucbankpractice.exception.AbnormalTransactionException;
-import com.f32s.jucbankpractice.model.*;
+import com.F32S.JUCbankpractice.exception.AbnormalTransactionException;
+import com.F32S.JUCbankpractice.model.Account;
+import com.F32S.JUCbankpractice.model.RecordType;
+import com.F32S.JUCbankpractice.model.TransactionRecord;
+import com.F32S.JUCbankpractice.model.TransferInfo;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
-
-import com.f32s.jucbankpractice.model.TransactionRecord;
-import org.springframework.stereotype.Service;
-
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Stream;
 
 @Service
 public class BankService {
@@ -51,7 +52,7 @@ public class BankService {
 
         ExecutorService executorService = Executors.newFixedThreadPool(3);
 
-        CompletableFuture future1 = CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> future1 = CompletableFuture.runAsync(() -> {
             for (int i = 0; i < 1000; i++) {
                 TransactionRecord transactionRecord = TransactionRecord.builder()
                         .id(UUID.randomUUID().toString())
@@ -66,7 +67,7 @@ public class BankService {
             }
         }, executorService);
 
-        CompletableFuture future2 = CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> future2 = CompletableFuture.runAsync(() -> {
             for (int i = 0; i < 1000; i++) {
                 TransactionRecord transactionRecord = TransactionRecord.builder()
                         .id(UUID.randomUUID().toString())
@@ -81,7 +82,7 @@ public class BankService {
             }
         }, executorService);
 
-        CompletableFuture future3 = CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> future3 = CompletableFuture.runAsync(() -> {
             for (int i = 0; i < 1000; i++) {
                 TransactionRecord transactionRecord = TransactionRecord.builder()
                         .id(UUID.randomUUID().toString())
@@ -275,9 +276,12 @@ public class BankService {
 
 //        2. 檢查帳戶是否存在，如果存在就宣告出該帳戶
         Account fromAccount = checkAccountExistAndGet(fromAccountId);
+        if (fromAccount == null ) {
+            throw new AbnormalTransactionException("轉出帳戶不存在");
+        }
         Account toAccount = checkAccountExistAndGet(toAccountId);
-        if (fromAccount == null || toAccount == null) {
-            throw new AbnormalTransactionException("帳戶不存在");
+        if (toAccount == null ) {
+            throw new AbnormalTransactionException("轉入帳戶不存在");
         }
 
 //        3. 檢查帳戶餘額是否足夠

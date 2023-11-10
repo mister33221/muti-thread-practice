@@ -1,18 +1,13 @@
 package com.F32S.JUCbankpractice.service;
 
 import com.F32S.JUCbankpractice.exception.AbnormalTransactionException;
-import com.F32S.JUCbankpractice.model.Account;
-import com.F32S.JUCbankpractice.model.RecordType;
-import com.F32S.JUCbankpractice.model.TransactionRecord;
-import com.F32S.JUCbankpractice.model.TransferInfo;
+import com.F32S.JUCbankpractice.model.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -35,10 +30,10 @@ public class BankService {
     // 使用 ReentrantLock 來實現帳戶鎖，每個帳戶都有一把鎖，當有線程要對帳戶進行操作時，先鎖住該帳戶，操作完後再解鎖。
     private final Map<String, ReentrantLock> accountLocks = new HashMap<>();
 
-    public String generateInitBankAccounts() {
+    public String generateInitBankAccounts( int numberOfAccounts,  int initBalance) {
         accounts.add(Account.builder().id("1").name("銀行帳號").balance(new AtomicInteger(1000000)).transferTimes(0).build());
-        for (int i = 2; i <= 100; i++) {
-            accounts.add(Account.builder().id(String.valueOf(i)).name("帳號" + i).balance(new AtomicInteger(0)).transferTimes(0).build());
+        for (int i = 2; i <= numberOfAccounts; i++) {
+            accounts.add(Account.builder().id(String.valueOf(i)).name("帳號" + i).balance(new AtomicInteger(initBalance)).transferTimes(0).build());
         }
 
         return "Generate init bank accounts successfully!";
@@ -352,5 +347,34 @@ public class BankService {
 
         return "轉帳成功";
 
+    }
+
+    public Integer computeTotalAmount() {
+
+//        version 1
+//        I will use fork/join framework to compute the total amount of all accounts
+        ForkJoinPool forkJoinPool = new ForkJoinPool();
+
+        return forkJoinPool.invoke(new SumAmountTask(accounts));
+
+
+
+//        version 2
+//        I use foreach to compare the performance with version 1
+//        int totalAmount = 0;
+//        for(Account account : accounts){
+//            totalAmount += account.getBalance().intValue();
+//        }
+//        return totalAmount;
+
+//        version 3
+//        I use stream to compare the performance with version 1
+
+
+//        return accounts.stream().mapToInt(account -> account.getBalance().intValue()).sum();
+
+//        version 4
+//        I use parallelStream to compare the performance with version 1
+//        return accounts.parallelStream().mapToInt(account -> account.getBalance().intValue()).sum();
     }
 }

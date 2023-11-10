@@ -172,22 +172,6 @@ public class BankService {
 
     }
 
-    private Account checkAccountExistAndGet(String accountId) {
-        return this.accounts.stream().filter(account -> accountId.equals(account.getId())).findFirst().orElse(null);
-    }
-
-    private boolean checkAccountBalanceIsEnough(Account account, int amount) {
-        return account.getBalance().intValue() < amount;
-    }
-
-    private int setFee(int transferTimes) {
-        int fee = 0;
-        if (transferTimes >= 3) {
-            fee = 10;
-        }
-        return fee;
-    }
-
     public String transfer(TransferInfo transferInfo) throws AbnormalTransactionException {
 
 ////        version 1
@@ -376,5 +360,21 @@ public class BankService {
 //        version 4
 //        I use parallelStream to compare the performance with version 1
 //        return accounts.parallelStream().mapToInt(account -> account.getBalance().intValue()).sum();
+    }
+
+    private Account checkAccountExistAndGet(String accountId) {
+        return this.accounts.stream().filter(account -> accountId.equals(account.getId())).findFirst().orElse(null);
+    }
+
+    private boolean checkAccountBalanceIsEnough(Account account, int amount) {
+        return account.getBalance().intValue() < amount;
+    }
+
+    private int setFee(int transferTimes) {
+        int fee = 0;
+        if (transferTimes >= 3) {
+            fee = 10;
+        }
+        return fee;
     }
 }

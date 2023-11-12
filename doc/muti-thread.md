@@ -1176,8 +1176,6 @@ public class SaleTicketDemoForFairAndUnFairLock {
 - 重入鎖包含以下幾種
   - synchronized: 他是一種隱式鎖，也就是天生自帶可重入的特性。
   - ReentrantLock: 他是一種顯式鎖，需要手動加鎖和解鎖，所以他也是可重入的。
-- 非重入鎖包含以下幾種
-  - 
 
 ```java
 // 重入鎖是指同一個線程外層函數獲取鎖之後，內層遞迴函數仍然能獲取該鎖的代碼，在同一個線程在外層方法獲取鎖的時候，在進入內層方法會自動獲取鎖。
@@ -1265,6 +1263,7 @@ public class ReEntryLockDemo {
 ```java
 // 死鎖: 多個線程互相抱著對方需要的資源，然後形成僵持
 // 本測試啟動後，會發現 main 線程一直處於等待狀態，app一直不會停止。
+// 這時打開terminal，輸入 jps -l，找到 DeadLock 對應的 pid，再輸入 jstack pid，可以看到死鎖的原因
 public class DeadLock {
 
     public static void main(String[] args) {
@@ -1308,6 +1307,67 @@ class HoldLockThread implements Runnable {
 }
 
 ```
+- 啟動上述的程式碼，會發現 main 線程一直處於等待狀態，app一直不會停止，這時打開terminal，輸入 jps -l，找到 DeadLock 對應的 pid，再輸入 jstack <pid>，可以看到死鎖的原因
+  ```console
+  Found one Java-level deadlock:
+  =============================
+  "ThreadBBB":
+    waiting to lock monitor 0x000000001e2f0b88 (object 0x000000076b0f0b00, a java.lang.String),
+    which is held by "ThreadAAA"
+  "ThreadAAA":
+    waiting to lock monitor 0x000000001e2f1b88 (object 0x000000076b0f0b10, a java.lang.String),
+    which is held by "ThreadBBB"
+
+  Java stack information for the threads listed above:
+  ===================================================
+  "ThreadBBB":
+        at com.imooc.juc.DeadLock.run(DeadLock.java:45)
+        - waiting to lock <0x000000076b0f0b00> (a java.lang.String)
+        - locked <0x000000076b0f0b10> (a java.lang.String)
+        at java.lang.Thread.run(Thread.java:748)
+  "ThreadAAA":
+        at com.imooc.juc.DeadLock.run(DeadLock.java:45)
+        - waiting to lock <0x000000076b0f0b10> (a java.lang.String)
+        - locked <0x000000076b0f0b00> (a java.lang.String)
+        at java.lang.Thread.run(Thread.java:748)
+
+  Found 1 deadlock.
+  ```
+  - 或是你也可以開啟console，輸入 jconsole，選擇你要觀察的程式，點選執行緒，就可以看到死鎖的情況
+    ![Alt text](image-11.png)
+
+## 中斷
+
+- 指的是一個執行緒正在執行時，中斷它的執行，讓它提前結束，釋放資源。
+- 一個執行續不應該由其他執行緒來強制終止，而是由自己決定是否終止，這樣才能保證資源的正常釋放，所以 Thread.stop、Thread.suspend、Thread.resume 都是不建議使用的方法，也已經被廢棄了。
+- 常用的中段方法
+    - Thread.interrupt(): 中斷執行緒，會設置執行緒的中斷標誌位，但是不會立即中斷執行緒，需要被中斷的執行緒自己去檢查中斷標誌位，並做出相應的處理。
+    - Thread.isInterrupted(): 檢查中斷標誌位，並不會清除中斷標誌位。
+    - Thread.interrupted(): 檢查中斷標誌位，並清除中斷標誌位。
+
+## volatile
+
+- volatile是一個特殊的修飾符，主要用於確保變數的修改對所有線程都立即可見，以及禁止指令重排序。
+    - 可見性：當一個共享變數被volatile修飾時，它會保證修改的值會立即被更新到主存，當有其他線程需要讀取時，它會去主存中讀取新值。而普通的共享變數不能保證可見性，因為普通共享變數被修改之後，什麼時候被寫入主存是不確定的，當其他線程去讀取時，此時內存中可能還是原來的舊值，導致數據的不一致。
+    - 禁止指令重排序優化：普通的變數只會保證在該方法的執行過程中所有依賴賦值結果的地方都能獲取到正確的結果，但從整體來看，代碼塊中後面的語句可能會在前面的語句之前執行。有可能在單線程環境下不會出現問題，但是在多線程環境下就可能會出現數據不一致的問題。而當一個變數定義為volatile後，它會禁止指令重排序。
+```java
+public class VolatileExample {
+    private volatile int counter = 0;
+
+    public void incrementCounter() {
+        counter++;
+    }
+
+    public int getCounter() {
+        return counter;
+    }
+}
+```
+- 在上述代碼中，counter變數被聲明為volatile，這意味著任何線程在讀取counter時都會看到最新的值，無論它在何時被其他線程修改。同時，incrementCounter方法中對counter的修改會立即寫入主存，保證了可見性和禁止了指令重排序。
+- 請注意，雖然volatile提供了一定的線程安全，但它並不能替代synchronized或java.util.concurrent包中的工具，因為volatile無法保證複合操作的原子性。
+
+
+
 
 ## 參考資料
 - [一張圖看懂同步、非同步與多執行緒的差別](https://ouch1978.github.io/blog/2022/09/25/understand-sync-async-and-multi-thread-with-one-pic)

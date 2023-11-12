@@ -2,6 +2,7 @@ package org.example.lock;
 
 // 死鎖: 多個線程互相抱著對方需要的資源，然後形成僵持
 // 本測試啟動後，會發現 main 線程一直處於等待狀態，app一直不會停止。
+// 這時打開terminal，輸入 jps -l，找到 DeadLock 對應的 pid，再輸入 jstack pid，可以看到死鎖的原因
 public class DeadLock {
 
     public static void main(String[] args) {

@@ -1114,5 +1114,260 @@ synchronized 可以用在以下幾種地方
     }
   ```
 
+### 公平鎖與非公平鎖
+
+```java
+// 模擬三個受朴元賣完50張票的例子
+// 嘗試切換 lockWithUnFair 和 lockWithFair 來觀察結果
+class Ticket {
+    private int number = 50;
+//    非公平鎖: 一個線程可以連續多次獲取鎖，預設是非公平鎖，因為已CPU的角度而言，非公平鎖的效率更高，會依照怎麼做最快的方式把需求做完
+    ReentrantLock lockWithUnFair = new ReentrantLock();
+//    公平鎖: 一個線程只能連續獲取一次鎖，多個線程按照申請鎖的順序來獲取鎖，先來後到的概念
+    ReentrantLock lockWithFair = new ReentrantLock(true);
+
+    public void sale() {
+        lockWithUnFair.lock();
+//        lockWithFair.lock();
+        try {
+            if (number > 0) {
+                System.out.println(Thread.currentThread().getName() + "賣出第: \t" + (number--) + "\t 還剩下: " + number);
+            }
+        } finally {
+            lockWithUnFair.unlock();
+//            lockWithFair.unlock();
+        }
+    }
+
+}
+
+public class SaleTicketDemoForFairAndUnFairLock {
+
+    public static void main(String[] args) {
+        Ticket ticket = new Ticket();
+
+        new Thread(() -> {
+            for (int i = 1; i < 55; i++) {
+                ticket.sale();
+            }
+        }, "a").start();
+
+        new Thread(() -> {
+            for (int i = 1; i < 55; i++) {
+                ticket.sale();
+            }
+        }, "b").start();
+
+        new Thread(() -> {
+            for (int i = 1; i < 55; i++) {
+                ticket.sale();
+            }
+        }, "c").start();
+
+    }
+
+}
+
+```
+
+### 可重入鎖(也叫做遞歸鎖)
+
+- 重入鎖的意思是指同一個線程外層函數獲取鎖之後，內層遞迴函數仍然能獲取該鎖的代碼，在同一個線程在外層方法獲取鎖的時候，在進入內層方法會自動獲取鎖。
+- 重入鎖包含以下幾種
+  - synchronized: 他是一種隱式鎖，也就是天生自帶可重入的特性。
+  - ReentrantLock: 他是一種顯式鎖，需要手動加鎖和解鎖，所以他也是可重入的。
+
+```java
+// 重入鎖是指同一個線程外層函數獲取鎖之後，內層遞迴函數仍然能獲取該鎖的代碼，在同一個線程在外層方法獲取鎖的時候，在進入內層方法會自動獲取鎖。
+// synchronized: 隱式重入鎖，出現一次 synchronized 就會鎖住一次，鎖住的是同一個對象
+// ReentrantLock: 顯式重入鎖，需要手動鎖住和解鎖，鎖住的是同一個對象
+
+import java.util.concurrent.locks.ReentrantLock;
+
+public class ReEntryLockDemo {
+
+    public static void main(String[] args) {
+
+        ReEntryLockDemo reEntryLockDemo = new ReEntryLockDemo();
+
+//        註解掉一個方法，再執行另一個方法，觀察隱式重入鎖和顯式重入鎖的差異
+//        reEntryLockDemo.testSynchronized();
+        reEntryLockDemo.testReentrantLock();
+
+    }
+
+    public void testSynchronized() {
+        final Object object = new Object();
+
+        new Thread(() -> {
+
+            synchronized (object) {
+                System.out.println(Thread.currentThread().getName() + "\t synchronized-外層");
+                synchronized (object) {
+                    System.out.println(Thread.currentThread().getName() + "\t synchronized-中層");
+                    synchronized (object) {
+                        System.out.println(Thread.currentThread().getName() + "\t synchronized-內層");
+                    }
+                }
+            }
+
+        }).start();
+    }
+
+    public void testReentrantLock() {
+
+        ReentrantLock lock = new ReentrantLock();
+
+        new Thread(() -> {
+
+            lock.lock();
+            try {
+                System.out.println(Thread.currentThread().getName() + "\t ReentrantLock-外層");
+                lock.lock();
+                try {
+                    System.out.println(Thread.currentThread().getName() + "\t ReentrantLock-中層");
+                    lock.lock();
+                    try {
+                        System.out.println(Thread.currentThread().getName() + "\t ReentrantLock-內層");
+                    } finally {
+                        lock.unlock();
+                    }
+                } finally {
+                    lock.unlock();
+                }
+            } finally {
+//                嘗試註解這行，導致t1沒有解鎖，t2無法獲取鎖，造成死鎖
+                lock.unlock();
+            }
+
+        }, "t1").start();
+
+        new Thread(() -> {
+
+            lock.lock();
+            try {
+                System.out.println(Thread.currentThread().getName() + "\t ReentrantLock-外層");
+            } finally {
+                lock.unlock();
+            }
+
+        }, "t2").start();
+
+    }
+}
+```
+
+### 死鎖
+
+- 死鎖: 指兩個或兩個以上的執行緒在獲取對方持有的鎖之後，都在等待對方釋放鎖，從而陷入了阻塞狀態，無法繼續執行的情況。
+```java
+// 死鎖: 多個線程互相抱著對方需要的資源，然後形成僵持
+// 本測試啟動後，會發現 main 線程一直處於等待狀態，app一直不會停止。
+// 這時打開terminal，輸入 jps -l，找到 DeadLock 對應的 pid，再輸入 jstack pid，可以看到死鎖的原因
+public class DeadLock {
+
+    public static void main(String[] args) {
+
+            String lockA = "lockA";
+            String lockB = "lockB";
+
+            new Thread(new HoldLockThread(lockA, lockB), "ThreadAAA").start();
+            new Thread(new HoldLockThread(lockB, lockA), "ThreadBBB").start();
+    }
+
+}
+
+class HoldLockThread implements Runnable {
+
+    private String lockA;
+    private String lockB;
+
+    public HoldLockThread(String lockA, String lockB) {
+        this.lockA = lockA;
+        this.lockB = lockB;
+    }
+
+    // 線程操作資源類
+    @Override
+    public void run() {
+        synchronized (lockA) {
+            System.out.println(Thread.currentThread().getName() + "\t 自己持有: " + lockA + "\t 嘗試獲取: " + lockB);
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            synchronized (lockB) {
+                System.out.println(Thread.currentThread().getName() + "\t 自己持有: " + lockB + "\t 嘗試獲取: " + lockA);
+            }
+        }
+    }
+}
+
+```
+- 啟動上述的程式碼，會發現 main 線程一直處於等待狀態，app一直不會停止，這時打開terminal，輸入 jps -l，找到 DeadLock 對應的 pid，再輸入 jstack <pid>，可以看到死鎖的原因
+  ```console
+  Found one Java-level deadlock:
+  =============================
+  "ThreadBBB":
+    waiting to lock monitor 0x000000001e2f0b88 (object 0x000000076b0f0b00, a java.lang.String),
+    which is held by "ThreadAAA"
+  "ThreadAAA":
+    waiting to lock monitor 0x000000001e2f1b88 (object 0x000000076b0f0b10, a java.lang.String),
+    which is held by "ThreadBBB"
+
+  Java stack information for the threads listed above:
+  ===================================================
+  "ThreadBBB":
+        at com.imooc.juc.DeadLock.run(DeadLock.java:45)
+        - waiting to lock <0x000000076b0f0b00> (a java.lang.String)
+        - locked <0x000000076b0f0b10> (a java.lang.String)
+        at java.lang.Thread.run(Thread.java:748)
+  "ThreadAAA":
+        at com.imooc.juc.DeadLock.run(DeadLock.java:45)
+        - waiting to lock <0x000000076b0f0b10> (a java.lang.String)
+        - locked <0x000000076b0f0b00> (a java.lang.String)
+        at java.lang.Thread.run(Thread.java:748)
+
+  Found 1 deadlock.
+  ```
+  - 或是你也可以開啟console，輸入 jconsole，選擇你要觀察的程式，點選執行緒，就可以看到死鎖的情況
+    ![Alt text](image-11.png)
+
+## 中斷
+
+- 指的是一個執行緒正在執行時，中斷它的執行，讓它提前結束，釋放資源。
+- 一個執行續不應該由其他執行緒來強制終止，而是由自己決定是否終止，這樣才能保證資源的正常釋放，所以 Thread.stop、Thread.suspend、Thread.resume 都是不建議使用的方法，也已經被廢棄了。
+- 常用的中段方法
+    - Thread.interrupt(): 中斷執行緒，會設置執行緒的中斷標誌位，但是不會立即中斷執行緒，需要被中斷的執行緒自己去檢查中斷標誌位，並做出相應的處理。
+    - Thread.isInterrupted(): 檢查中斷標誌位，並不會清除中斷標誌位。
+    - Thread.interrupted(): 檢查中斷標誌位，並清除中斷標誌位。
+
+## volatile
+
+- volatile是一個特殊的修飾符，主要用於確保變數的修改對所有線程都立即可見，以及禁止指令重排序。
+    - 可見性：當一個共享變數被volatile修飾時，它會保證修改的值會立即被更新到主存，當有其他線程需要讀取時，它會去主存中讀取新值。而普通的共享變數不能保證可見性，因為普通共享變數被修改之後，什麼時候被寫入主存是不確定的，當其他線程去讀取時，此時內存中可能還是原來的舊值，導致數據的不一致。
+    - 禁止指令重排序優化：普通的變數只會保證在該方法的執行過程中所有依賴賦值結果的地方都能獲取到正確的結果，但從整體來看，代碼塊中後面的語句可能會在前面的語句之前執行。有可能在單線程環境下不會出現問題，但是在多線程環境下就可能會出現數據不一致的問題。而當一個變數定義為volatile後，它會禁止指令重排序。
+```java
+public class VolatileExample {
+    private volatile int counter = 0;
+
+    public void incrementCounter() {
+        counter++;
+    }
+
+    public int getCounter() {
+        return counter;
+    }
+}
+```
+- 在上述代碼中，counter變數被聲明為volatile，這意味著任何線程在讀取counter時都會看到最新的值，無論它在何時被其他線程修改。同時，incrementCounter方法中對counter的修改會立即寫入主存，保證了可見性和禁止了指令重排序。
+- 請注意，雖然volatile提供了一定的線程安全，但它並不能替代synchronized或java.util.concurrent包中的工具，因為volatile無法保證複合操作的原子性。
+
+
+
+
 ## 參考資料
 - [一張圖看懂同步、非同步與多執行緒的差別](https://ouch1978.github.io/blog/2022/09/25/understand-sync-async-and-multi-thread-with-one-pic)

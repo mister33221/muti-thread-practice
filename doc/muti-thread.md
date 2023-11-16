@@ -1349,7 +1349,13 @@ class HoldLockThread implements Runnable {
 
 - volatile是一個特殊的修飾符，主要用於確保變數的修改對所有線程都立即可見，以及禁止指令重排序。
     - 可見性：當一個共享變數被volatile修飾時，它會保證修改的值會立即被更新到主存，當有其他線程需要讀取時，它會去主存中讀取新值。而普通的共享變數不能保證可見性，因為普通共享變數被修改之後，什麼時候被寫入主存是不確定的，當其他線程去讀取時，此時內存中可能還是原來的舊值，導致數據的不一致。
-    - 禁止指令重排序優化：普通的變數只會保證在該方法的執行過程中所有依賴賦值結果的地方都能獲取到正確的結果，但從整體來看，代碼塊中後面的語句可能會在前面的語句之前執行。有可能在單線程環境下不會出現問題，但是在多線程環境下就可能會出現數據不一致的問題。而當一個變數定義為volatile後，它會禁止指令重排序。
+    - 有序性：普通的變數只會保證在該方法的執行過程中所有依賴賦值結果的地方都能獲取到正確的結果，但從整體來看，代碼塊中後面的語句可能會在前面的語句之前執行。有可能在單線程環境下不會出現問題，但是在多線程環境下就可能會出現數據不一致的問題。而當一個變數定義為volatile後，它會禁止指令重排序。
+- 案例
+  - 當寫一個volatile變數時，JMM會把該執行序對硬的本地內存中的共享變數直立即刷新回主內存中。
+  - 當讀一個volatile變數時，JMM會把該執行去對硬的本地內存設置為無效，並重新從主內存中讀取該變數值。
+  - 所以volatile的寫內語意是直接刷新到主內存，讀的話就是從主內存中讀取，這樣就保證了同一時間內，只有一個執行緒在操作該變數。
+- volatile可以達到這種效果，是藉由內存屏障
+  - 內存屏障(Memory Barrier)是一個CPU指令，用於實現對內存操作的執行順序限制。在Java中，主要使用的是LoadLoad、StoreStore、LoadStore和StoreLoad四種屏障。
 ```java
 public class VolatileExample {
     private volatile int counter = 0;
@@ -1366,8 +1372,14 @@ public class VolatileExample {
 - 在上述代碼中，counter變數被聲明為volatile，這意味著任何線程在讀取counter時都會看到最新的值，無論它在何時被其他線程修改。同時，incrementCounter方法中對counter的修改會立即寫入主存，保證了可見性和禁止了指令重排序。
 - 請注意，雖然volatile提供了一定的線程安全，但它並不能替代synchronized或java.util.concurrent包中的工具，因為volatile無法保證複合操作的原子性。
 
+---------------------
 
-
+還缺了一些東西，有機會再補上
+- volatile的實現原理
+- CAS
+- 原子類
+- ThreadLocal
 
 ## 參考資料
 - [一張圖看懂同步、非同步與多執行緒的差別](https://ouch1978.github.io/blog/2022/09/25/understand-sync-async-and-multi-thread-with-one-pic)
+- [【尚硅谷】2022版JUC并发编程与源码分析（对标阿里P6-P7）](https://www.youtube.com/playlist?list=PLmOn9nNkQxJHezsejdFelbZQ-QLgsIfdn)
